@@ -15,12 +15,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         while let Some(Ok(frame)) = client_reader.read().await {
             match frame {
                 protocol::PupaFrame::Content { msg_id, body } => {
-                    flash_sender.send( msg_id ).await.unwrap()
+                    flash_sender.send(msg_id).await.unwrap()
                 }
                 protocol::PupaFrame::Win { msg_id, body } => {
                     println!("User TOKEN is a winner for the message \"{}\"", msg_id);
                 }
-                _ => { /* Сервер не будет нам писать ничего кроме Content и Win, просто игнорируем */ }
+                _ => { /* Сервер не будет нам писать ничего кроме Content и Win, просто игнорируем */
+                }
             }
         }
     });

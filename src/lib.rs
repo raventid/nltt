@@ -1,7 +1,7 @@
 pub mod protocol;
 
-use linked_hash_map::LinkedHashMap;
 use futures::SinkExt;
+use linked_hash_map::LinkedHashMap;
 use std::error::Error;
 use tokio_stream::StreamExt;
 
@@ -93,14 +93,15 @@ pub async fn connect_to_game_server(
     Ok((client_reader, client_writer))
 }
 
-
 pub struct MessageStore {
-    messages: linked_hash_map::LinkedHashMap<uuid::Uuid, Vec<u8>>
+    messages: linked_hash_map::LinkedHashMap<uuid::Uuid, Vec<u8>>,
 }
 
 impl MessageStore {
     pub fn new() -> Self {
-       MessageStore { messages: LinkedHashMap::new() }
+        MessageStore {
+            messages: LinkedHashMap::new(),
+        }
     }
 
     // Наша модификация будет поддерживать размер хэшмапы в районе 500
@@ -128,28 +129,31 @@ impl MessageStore {
     }
 }
 
-
 struct WinLog {
     signature: uuid::Uuid,
     timestamp: u64,
     msg_id: uuid::Uuid,
-
 }
 
 pub struct WinLogStore {
-    records: std::collections::VecDeque<WinLog>
+    records: std::collections::VecDeque<WinLog>,
 }
 
 impl WinLogStore {
     pub fn new() -> Self {
-       WinLogStore { records: std::collections::VecDeque::new() }
+        WinLogStore {
+            records: std::collections::VecDeque::new(),
+        }
     }
 
     // Дата и время, Токен пользователя, MSG_ID
     pub fn insert(&mut self, msg_id: uuid::Uuid, signature: uuid::Uuid) {
         use std::time::SystemTime;
         let now = SystemTime::now();
-        let timestamp = now.duration_since(SystemTime::UNIX_EPOCH).expect("smth is wrong with time :D").as_secs();
+        let timestamp = now
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("smth is wrong with time :D")
+            .as_secs();
 
         if self.records.len() == 100 {
             self.records.pop_front();
@@ -159,11 +163,14 @@ impl WinLogStore {
         self.records.push_back(WinLog {
             msg_id,
             timestamp,
-            signature
+            signature,
         });
     }
 
     pub fn get_all(&self) -> Vec<(uuid::Uuid, u64, uuid::Uuid)> {
-        self.records.iter().map(|win_log| (win_log.signature, win_log.timestamp, win_log.msg_id)).collect()
+        self.records
+            .iter()
+            .map(|win_log| (win_log.signature, win_log.timestamp, win_log.msg_id))
+            .collect()
     }
 }

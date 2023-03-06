@@ -65,7 +65,12 @@ impl State {
 
         for peer in self.peers.iter_mut() {
             if *peer.0 != sender_signature && peer.1.online == true {
-                log::debug!("From {} Sending to {}, msg: {:?}", sender_signature, peer.1.signature, message);
+                log::debug!(
+                    "From {} Sending to {}, msg: {:?}",
+                    sender_signature,
+                    peer.1.signature,
+                    message
+                );
 
                 // TODO: Тут нужно подрефакторить clone(), если хватит времени
                 peer.1
@@ -109,8 +114,8 @@ async fn main() {
 
     // Этот сервер обрабатывает АПИ запросы для статистики и так далее
     let mut api_server_listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", api_port))
-          .await
-          .expect("Cannot bind api_server_listener to the port provided");
+        .await
+        .expect("Cannot bind api_server_listener to the port provided");
 
     let game_state = Arc::clone(&state);
     let game_message_store = Arc::clone(&message_store);
@@ -119,46 +124,54 @@ async fn main() {
     // Запустим пару серверов на одном рантайме. Конечно с внешним хранилищем можно было бы разделить их на разные процессы.
     tokio::try_join!(
         tokio::spawn(async move {
-     loop {
+            loop {
+                let state = Arc::clone(&game_state);
+                let message_store = Arc::clone(&game_message_store);
+                let winlog_store = Arc::clone(&game_winlog_store);
 
-        let state = Arc::clone(&game_state);
-        let message_store = Arc::clone(&game_message_store);
-        let winlog_store = Arc::clone(&game_winlog_store);
+                log::debug!("Started a game server at 127.0.0.1:{}", port);
+                // В peer хранится ip адрес и порт входящего подключения.
+                let (socket, peer) = game_server_listener.accept().await.unwrap();
 
-
-        log::debug!("Started a game server at 127.0.0.1:{}", port);
-        // В peer хранится ip адрес и порт входящего подключения.
-        let (socket, peer) = game_server_listener.accept().await.unwrap();
-
-        // Для каждого входящего подключения мы будем создавать отдельную задачу.
-        // Можно было бы message_store положить в State, но у нас тогда была бы общая
-        // write блокировка на добавляение новых peer и на запись сообщений в очередь.
-        // Лучше разделим их, тем более это нам ничего не стоит.
+                // Для каждого входящего подключения мы будем создавать отдельную задачу.
+                // Можно было бы message_store положить в State, но у нас тогда была бы общая
+                // write блокировка на добавляение новых peer и на запись сообщений в очередь.
+                // Лучше разделим их, тем более это нам ничего не стоит.
+                tokio::spawn(async move {
+                    run_game_handler(socket, peer, state, message_store, winlog_store).await;
+                });
+            }
+        }),
         tokio::spawn(async move {
-            run_game_handler(socket, peer, state, message_store, winlog_store).await;
-        });
-     } }),
+            loop {
+                let state = Arc::clone(&state);
+                let message_store = Arc::clone(&message_store);
+                let winlog_store = Arc::clone(&winlog_store);
 
-tokio::spawn(async move {
-     loop {
-        let state = Arc::clone(&state);
-        let message_store = Arc::clone(&message_store);
-        let winlog_store = Arc::clone(&winlog_store);
+                log::debug!("Started an API server at 127.0.0.1:{}", api_port);
+                // В peer хранится ip адрес и порт входящего подключения.
+                let (socket, peer) = api_server_listener.accept().await.unwrap();
 
-
-        log::debug!("Started an API server at 127.0.0.1:{}", api_port);
-        // В peer хранится ip адрес и порт входящего подключения.
-        let (socket, peer) = api_server_listener.accept().await.unwrap();
-
-        tokio::spawn(async move {
-            run_api_handler(socket, peer, state, message_store, winlog_store).await;
-        });
-     } })
+                tokio::spawn(async move {
+                    run_api_handler(socket, peer, state, message_store, winlog_store).await;
+                });
+            }
+        })
     );
 }
 
-async fn run_game_handler(socket: tokio::net::TcpStream, peer: std::net::SocketAddr, state: Arc<Mutex<State>>, message_store: Arc<Mutex<MessageStore>>, winlog_store: Arc<Mutex<WinLogStore>>) {
-    log::debug!("New Game server connection from {}:{}", peer.ip(), peer.port());
+async fn run_game_handler(
+    socket: tokio::net::TcpStream,
+    peer: std::net::SocketAddr,
+    state: Arc<Mutex<State>>,
+    message_store: Arc<Mutex<MessageStore>>,
+    winlog_store: Arc<Mutex<WinLogStore>>,
+) {
+    log::debug!(
+        "New Game server connection from {}:{}",
+        peer.ip(),
+        peer.port()
+    );
 
     let codec = protocol::PupaCodec::new();
     let (read_half, write_half) = socket.into_split();
@@ -169,7 +182,7 @@ async fn run_game_handler(socket: tokio::net::TcpStream, peer: std::net::SocketA
 
     // Внутренний канал, для обратной связи с модулем
     let (tx, mut rx) = tokio::sync::mpsc::channel::<protocol::PupaFrame>(10);
-    let current_signature : uuid::Uuid;
+    let current_signature: uuid::Uuid;
 
     // Возможные вопросы по авторизации:
     // А что если клиент подключиться и не будет использовать подключение?
@@ -181,9 +194,7 @@ async fn run_game_handler(socket: tokio::net::TcpStream, peer: std::net::SocketA
     //
     if let Some(initial_bytes) = reader.next().await {
         match initial_bytes {
-            Ok(protocol::PupaFrame::Authorize {
-                signature,
-            }) => {
+            Ok(protocol::PupaFrame::Authorize { signature }) => {
                 log::debug!("Authorizing peer [{}:{}]", peer.ip(), peer.port());
                 // Окей, мы прошли авторизацию, можно добавить пользователя в наш список
                 let new_peer = Peer {
@@ -291,12 +302,21 @@ async fn run_game_handler(socket: tokio::net::TcpStream, peer: std::net::SocketA
     // Поменяем ему статус на offline и отключим от канала.
     state.lock().await.disable_peer(current_signature);
 
-
     log::debug!("Peer disconnected [{}:{}]", peer.ip(), peer.port());
 }
 
-async fn run_api_handler(socket: tokio::net::TcpStream, peer: std::net::SocketAddr, state: Arc<Mutex<State>>, message_store: Arc<Mutex<MessageStore>>, winlog_store: Arc<Mutex<WinLogStore>>) {
-    log::debug!("New API server connection from {}:{}", peer.ip(), peer.port());
+async fn run_api_handler(
+    socket: tokio::net::TcpStream,
+    peer: std::net::SocketAddr,
+    state: Arc<Mutex<State>>,
+    message_store: Arc<Mutex<MessageStore>>,
+    winlog_store: Arc<Mutex<WinLogStore>>,
+) {
+    log::debug!(
+        "New API server connection from {}:{}",
+        peer.ip(),
+        peer.port()
+    );
 
     let codec = protocol::PupaCodec::new();
     let (read_half, write_half) = socket.into_split();
@@ -306,52 +326,50 @@ async fn run_api_handler(socket: tokio::net::TcpStream, peer: std::net::SocketAd
     let mut writer = tokio_util::codec::FramedWrite::new(write_half, codec);
 
     while let Some(result) = reader.next().await {
-            match result {
-                // Тут у нас запрашивают лог победителей
-                Ok(protocol::PupaFrame::ShowWinners) => {
-                    log::debug!(
-                        "ShowWinnersLog | from [{}:{}] ",
-                        peer.ip(),
-                        peer.port()
-                    );
+        match result {
+            // Тут у нас запрашивают лог победителей
+            Ok(protocol::PupaFrame::ShowWinners) => {
+                log::debug!("ShowWinnersLog | from [{}:{}] ", peer.ip(), peer.port());
 
-                    let winners = state.lock().await.get_sorted_winners();
-                    for record in winners.iter() {
-                        writer.send(protocol::PupaFrame::WinnerRecord {
+                let winners = state.lock().await.get_sorted_winners();
+                for record in winners.iter() {
+                    writer
+                        .send(protocol::PupaFrame::WinnerRecord {
                             wins: record.wins,
                             messages_received: record.messages_received,
-                            messages_sent: record.messages_sent
-                        }).await;
-                    }
-
-
-                }
-                // Тут у нас запрашивают лог побед
-                Ok(protocol::PupaFrame::ShowWinnersLog) => {
-                    log::debug!(
-                        "ShowWinnersLog | from [{}:{}] ",
-                        peer.ip(),
-                        peer.port()
-                    );
-
-                    let records = winlog_store.lock().await.get_all();
-                    for (signature, timestamp, msg_id) in records.into_iter() {
-                        writer.send(protocol::PupaFrame::WinLogRecord {
-                            signature,
-                            timestamp,
-                            msg_id
-                        }).await;
-                    }
-                }
-                Err(e) => {
-                    log::error!("error on decoding from socket; error = {:?}", e);
-                }
-                _ => {
-                    //ignore
+                            messages_sent: record.messages_sent,
+                        })
+                        .await;
                 }
             }
+            // Тут у нас запрашивают лог побед
+            Ok(protocol::PupaFrame::ShowWinnersLog) => {
+                log::debug!("ShowWinnersLog | from [{}:{}] ", peer.ip(), peer.port());
+
+                let records = winlog_store.lock().await.get_all();
+                for (signature, timestamp, msg_id) in records.into_iter() {
+                    writer
+                        .send(protocol::PupaFrame::WinLogRecord {
+                            signature,
+                            timestamp,
+                            msg_id,
+                        })
+                        .await;
+                }
+            }
+            Err(e) => {
+                log::error!("error on decoding from socket; error = {:?}", e);
+            }
+            _ => {
+                //ignore
+            }
+        }
     }
 
     // Все, наш клиент отключился.
-    log::debug!("API Server | Peer disconnected [{}:{}]", peer.ip(), peer.port());
+    log::debug!(
+        "API Server | Peer disconnected [{}:{}]",
+        peer.ip(),
+        peer.port()
+    );
 }

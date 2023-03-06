@@ -11,14 +11,32 @@ use tokio_util::codec::{Decoder, Encoder};
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub enum PupaFrame {
     // Фрейм для авторизации
-    Authorize { signature: uuid::Uuid },
-    Content { msg_id: uuid::Uuid, body: Vec<u8> },
-    Flash { msg_id: uuid::Uuid },
-    Win { msg_id: uuid::Uuid, body: Vec<u8> },
+    Authorize {
+        signature: uuid::Uuid,
+    },
+    Content {
+        msg_id: uuid::Uuid,
+        body: Vec<u8>,
+    },
+    Flash {
+        msg_id: uuid::Uuid,
+    },
+    Win {
+        msg_id: uuid::Uuid,
+        body: Vec<u8>,
+    },
     ShowWinners,
-    WinnerRecord {wins: u32, messages_received: u32, messages_sent: u32},
+    WinnerRecord {
+        wins: u32,
+        messages_received: u32,
+        messages_sent: u32,
+    },
     ShowWinnersLog,
-    WinLogRecord {signature: uuid::Uuid, timestamp: u64, msg_id: uuid::Uuid},
+    WinLogRecord {
+        signature: uuid::Uuid,
+        timestamp: u64,
+        msg_id: uuid::Uuid,
+    },
 }
 
 // Кодек позволяет нам превратить наш фрейм в байты и обратно.
