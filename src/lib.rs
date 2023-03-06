@@ -68,12 +68,12 @@ impl ClientWriter {
 pub async fn connect_to_game_server(
     server_addr: &str,
     signature: Option<uuid::Uuid>,
-) -> Result<(ClientReader, ClientWriter), Box<dyn Error>> {
-    println!("Connecting to {} ...", server_addr);
+) -> Result<(ClientReader, ClientWriter, uuid::Uuid), Box<dyn Error>> {
+    log::debug!("Connecting to {} ...", server_addr);
 
     let stream = tokio::net::TcpStream::connect(server_addr).await?;
 
-    println!("Established connection to {}", server_addr);
+    log::debug!("Established connection to {}", server_addr);
 
     let codec = protocol::PupaCodec::new();
     let (read_half, write_half) = stream.into_split();
@@ -88,13 +88,12 @@ pub async fn connect_to_game_server(
 
     let signature = signature.unwrap_or_else(|| uuid::Uuid::new_v4());
 
-    println!("Authorizing with key provided {}", signature);
+    log::debug!("Authorizing with key provided {}", signature);
 
     let frame = protocol::PupaFrame::Authorize { signature };
     let _ = client_writer.stream.send(frame).await;
-    // TODO: обработать ошибку сети + ответ сервера в случае Unauth доступа (хотя имхо это не надо)
 
-    Ok((client_reader, client_writer))
+    Ok((client_reader, client_writer, signature))
 }
 
 pub struct MessageStore {

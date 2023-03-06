@@ -5,6 +5,8 @@ use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::init();
+
     let game_server_port =
         env::var("GAME_SERVER_PORT").expect("GAME_SERVER_PORT environment variable not set");
     let game_server_port = game_server_port
@@ -17,7 +19,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         None
     };
 
-    let (mut client_reader, mut client_writer) =
+    let (mut client_reader, mut client_writer, signature) =
         connect_to_game_server(&format!("127.0.0.1:{}", game_server_port), signature).await?;
 
     let mut send_content_timer = tokio::time::interval(std::time::Duration::from_secs(5));
@@ -27,11 +29,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tokio::spawn(async move {
         while let Some(Ok(frame)) = client_reader.read().await {
             match frame {
-                protocol::PupaFrame::Content { msg_id, body } => {
+                protocol::PupaFrame::Content { msg_id, body: _ } => {
                     flash_sender.send(msg_id).await.unwrap()
                 }
-                protocol::PupaFrame::Win { msg_id, body } => {
-                    println!("User TOKEN is a winner for the message \"{}\"", msg_id);
+                protocol::PupaFrame::Win { msg_id, body: _ } => {
+                    println!(
+                        "User {} is a winner for the message \"{}\"",
+                        signature, msg_id
+                    );
                 }
                 _ => { /* Сервер не будет нам писать ничего кроме Content и Win, просто игнорируем */
                 }
@@ -42,16 +47,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     loop {
         tokio::select! {
             Some(msg_id) = flash_receiver.recv() => {
-                println!("Sending the flash message: {}", msg_id);
+                log::debug!("Sending the flash message: {}", msg_id);
                 client_writer.write_flash(msg_id).await?;
             },
             _ = send_content_timer.tick() => {
                 let uuid = uuid::Uuid::new_v4();
-                println!("Writing regular content | msg_id: {}", uuid);
+                log::debug!("Writing regular content | msg_id: {}", uuid);
                 client_writer.write_content(uuid, client_writer.generate_random_text()).await?;
             },
         }
     }
-
-    Ok(())
 }

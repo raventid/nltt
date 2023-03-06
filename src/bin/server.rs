@@ -74,7 +74,8 @@ impl State {
                 );
 
                 // TODO: Тут нужно подрефакторить clone(), если хватит времени
-                peer.1
+                let _ = peer
+                    .1
                     .channel
                     .clone()
                     .expect("we should only have active peers in broadcast")
@@ -123,7 +124,7 @@ async fn main() {
             .expect("Cannot bind listener to the port provided");
 
     // Этот сервер обрабатывает АПИ запросы для статистики и так далее
-    let mut api_server_listener =
+    let api_server_listener =
         tokio::net::TcpListener::bind(format!("127.0.0.1:{}", api_server_port))
             .await
             .expect("Cannot bind api_server_listener to the port provided");
@@ -134,7 +135,7 @@ async fn main() {
 
     // Запустим пару серверов на одном рантайме. Конечно с внешним хранилищем можно было бы разделить их на разные процессы.
     // Наверное тут можно было бы и на разных рантаймах запустить, чтобы мы могли их workloadы изолировать, но пусть в первой версии так побудут
-    tokio::try_join!(
+    let _ = tokio::try_join!(
         tokio::spawn(async move {
             loop {
                 let state = Arc::clone(&game_state);
@@ -253,7 +254,7 @@ async fn run_game_handler(
             // это до нас долетело чужое Content сообщение
             // Запишем его клиенту и пусть он готовит Flash
             Some(msg) = rx.recv() => {
-                writer.send(msg).await;
+                let _ = writer.send(msg).await;
             }
             // Здесь мы просто обрабатываем сокет от клиента
             // все, что он нам пишет приходит сюда
@@ -290,7 +291,7 @@ async fn run_game_handler(
                         // А вот и наш победитель
                         state.lock().await.update_winners(current_signature);
                         winlog_store.lock().await.insert(msg_id, current_signature);
-                        writer.send(protocol::PupaFrame::Win {msg_id, body}).await;
+                        let _ = writer.send(protocol::PupaFrame::Win {msg_id, body}).await;
                     }
                 }
                 _ => {
@@ -345,7 +346,7 @@ async fn run_api_handler(
 
                 let winners = state.lock().await.get_sorted_winners();
                 for record in winners.iter() {
-                    writer
+                    let _ = writer
                         .send(protocol::PupaFrame::WinnerRecord {
                             signature: record.signature,
                             online: record.online,
@@ -364,7 +365,7 @@ async fn run_api_handler(
 
                 let records = winlog_store.lock().await.get_all();
                 for (signature, timestamp, msg_id) in records.into_iter() {
-                    writer
+                    let _ = writer
                         .send(protocol::PupaFrame::WinLogRecord {
                             signature,
                             timestamp,

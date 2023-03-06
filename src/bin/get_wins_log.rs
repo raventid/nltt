@@ -4,7 +4,7 @@ use std::error::Error;
 use futures::SinkExt;
 use tokio_stream::StreamExt;
 
-use nltt::{connect_to_game_server, protocol};
+use nltt::protocol;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
