@@ -38,6 +38,12 @@ impl ClientWriter {
         self.stream.send(frame).await
     }
 
+    pub async fn ask_for_wins_log(&mut self) -> Result<(), std::io::Error> {
+        let frame = protocol::PupaFrame::ShowWinnersLog;
+
+        self.stream.send(frame).await
+    }
+
     // Подключившись к серверу клиент должен каждые 5 секунд отправлять
     // на сервер сообщение типа "КОНТЕНТ", формата {MSG_ID, BODY}.
     // MSG_ID должен быть уникальным (может быть UUID или другой). BODY
@@ -65,7 +71,6 @@ impl ClientWriter {
 pub async fn connect_to_game_server(
     server_addr: &str,
 ) -> Result<(ClientReader, ClientWriter), Box<dyn Error>> {
-    // let server_addr = "127.0.0.1:61616";
     println!("Connecting to {} ...", server_addr);
 
     let stream = tokio::net::TcpStream::connect(server_addr).await?;

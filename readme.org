@@ -25,12 +25,17 @@
 * Как запустить
 Сервер с отладочной печатью. Ее можно выключить убрав дебаг ключ.
 #+begin_src bash
-RUST_LOG="debug" cargo run --bin server
+GAME_SERVER_PORT=8000 API_SERVER_PORT=8010 RUST_LOG="debug" cargo run --bin server
 #+end_src
 
 Клиент
 #+begin_src
-RUST_LOG="debug" cargo run --bin client
+GAME_SERVER_PORT=8000 RUST_LOG="debug" cargo run --bin client
+#+end_src
+
+Статистика с апи сервера. Скрипт идет на апи сервер и печатает статиситку в stdout.
+#+begin_src bash
+API_SERVER_PORT=8010 RUST_LOG="debug" cargo run --bin get_wins_log
 #+end_src
 
 Как запустить множество клиентов это выбор пользователя. Я просто открываю в разных табах консоли.

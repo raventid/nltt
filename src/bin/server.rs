@@ -1,4 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
+use std::env;
 
 use futures::SinkExt;
 use tokio::sync::Mutex;
@@ -100,20 +101,22 @@ struct Peer {
 async fn main() {
     env_logger::init();
 
-    let port = 8000;
-    let api_port = 8010;
+    let game_server_port = env::var("GAME_SERVER_PORT").expect("GAME_SERVER_PORT environment variable not set");
+    let game_server_port = game_server_port.parse::<u32>().expect("GAME_SERVER_PORT  environment variable is not a valid number");
+    let api_server_port =env::var("API_SERVER_PORT").expect("API_SERVER_PORT environment variable not set");
+    let api_server_port = api_server_port.parse::<u32>().expect("API_SERVER_PORT  environment variable is not a valid number");
 
     let state = Arc::new(Mutex::new(State::new()));
     let message_store = Arc::new(Mutex::new(MessageStore::new()));
     let winlog_store = Arc::new(Mutex::new(WinLogStore::new()));
 
     // Этот сервер обрабатывает логику игры (общение с клиентами сообщения)
-    let game_server_listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port))
+    let game_server_listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", game_server_port))
         .await
         .expect("Cannot bind listener to the port provided");
 
     // Этот сервер обрабатывает АПИ запросы для статистики и так далее
-    let mut api_server_listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", api_port))
+    let mut api_server_listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", api_server_port))
         .await
         .expect("Cannot bind api_server_listener to the port provided");
 
@@ -122,6 +125,7 @@ async fn main() {
     let game_winlog_store = Arc::clone(&winlog_store);
 
     // Запустим пару серверов на одном рантайме. Конечно с внешним хранилищем можно было бы разделить их на разные процессы.
+    // Наверное тут можно было бы и на разных рантаймах запустить, чтобы мы могли их workloadы изолировать, но пусть в первой версии так побудут
     tokio::try_join!(
         tokio::spawn(async move {
             loop {
@@ -129,7 +133,7 @@ async fn main() {
                 let message_store = Arc::clone(&game_message_store);
                 let winlog_store = Arc::clone(&game_winlog_store);
 
-                log::debug!("Started a game server at 127.0.0.1:{}", port);
+                log::debug!("Started a game server at 127.0.0.1:{}", game_server_port);
                 // В peer хранится ip адрес и порт входящего подключения.
                 let (socket, peer) = game_server_listener.accept().await.unwrap();
 
@@ -148,7 +152,7 @@ async fn main() {
                 let message_store = Arc::clone(&message_store);
                 let winlog_store = Arc::clone(&winlog_store);
 
-                log::debug!("Started an API server at 127.0.0.1:{}", api_port);
+                log::debug!("Started an API server at 127.0.0.1:{}", api_server_port);
                 // В peer хранится ip адрес и порт входящего подключения.
                 let (socket, peer) = api_server_listener.accept().await.unwrap();
 
@@ -309,7 +313,7 @@ async fn run_api_handler(
     socket: tokio::net::TcpStream,
     peer: std::net::SocketAddr,
     state: Arc<Mutex<State>>,
-    message_store: Arc<Mutex<MessageStore>>,
+    _message_store: Arc<Mutex<MessageStore>>,
     winlog_store: Arc<Mutex<WinLogStore>>,
 ) {
     log::debug!(
@@ -341,6 +345,8 @@ async fn run_api_handler(
                         })
                         .await;
                 }
+
+                break;
             }
             // Тут у нас запрашивают лог побед
             Ok(protocol::PupaFrame::ShowWinnersLog) => {
@@ -356,6 +362,8 @@ async fn run_api_handler(
                         })
                         .await;
                 }
+
+                break;
             }
             Err(e) => {
                 log::error!("error on decoding from socket; error = {:?}", e);
@@ -366,7 +374,7 @@ async fn run_api_handler(
         }
     }
 
-    // Все, наш клиент отключился.
+    // Все, наш клиент отключился. Ну или мы отключили его по break;
     log::debug!(
         "API Server | Peer disconnected [{}:{}]",
         peer.ip(),
