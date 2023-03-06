@@ -27,6 +27,7 @@ pub enum PupaFrame {
     },
     ShowWinners,
     WinnerRecord {
+        signature: uuid::Uuid,
         wins: u32,
         messages_received: u32,
         messages_sent: u32,

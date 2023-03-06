@@ -339,6 +339,7 @@ async fn run_api_handler(
                 for record in winners.iter() {
                     writer
                         .send(protocol::PupaFrame::WinnerRecord {
+                            signature: record.signature,
                             wins: record.wins,
                             messages_received: record.messages_received,
                             messages_sent: record.messages_sent,

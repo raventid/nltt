@@ -28,3 +28,7 @@ path = "src/bin/server.rs"
 [[bin]]
 name = "get_wins_log"
 path = "src/bin/get_wins_log.rs"
+
+[[bin]]
+name = "get_sorted_winners"
+path = "src/bin/get_sorted_winners.rs"
