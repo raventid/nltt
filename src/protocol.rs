@@ -14,6 +14,7 @@ pub enum PupaFrame {
     Authorize {
         signature: uuid::Uuid,
     },
+    NonAuthorized,
     Content {
         msg_id: uuid::Uuid,
         body: Vec<u8>,

@@ -228,6 +228,7 @@ async fn run_game_handler(
                     peer.ip(),
                     peer.port()
                 );
+                let _ = writer.send(protocol::PupaFrame::NonAuthorized).await;
                 return;
             }
             Err(_) => {
@@ -236,6 +237,7 @@ async fn run_game_handler(
                     peer.ip(),
                     peer.port()
                 );
+                let _ = writer.send(protocol::PupaFrame::NonAuthorized).await;
                 return;
             }
         }
