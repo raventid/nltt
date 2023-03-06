@@ -1,4 +1,4 @@
-use nltt::{connect_to_game_server, protocol, ClientReader, ClientWriter};
+use nltt::{connect_to_game_server, protocol};
 use std::error::Error;
 
 #[tokio::main]

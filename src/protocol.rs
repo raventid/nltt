@@ -59,7 +59,6 @@ impl Encoder<PupaFrame> for PupaCodec {
     type Error = io::Error;
 
     fn encode(&mut self, item: PupaFrame, buffer: &mut bytes::BytesMut) -> Result<(), io::Error> {
-        println!("encode {}", buffer.len());
         let encoded: Vec<u8> =
             bincode::serialize(&item).expect("unvalidated data passed to encoder");
         buffer.extend(encoded);
@@ -72,8 +71,6 @@ impl Decoder for PupaCodec {
     type Error = io::Error;
 
     fn decode(&mut self, buf: &mut bytes::BytesMut) -> Result<Option<PupaFrame>, io::Error> {
-        println!("decode {}", buf.len());
-
         if !buf.is_empty() {
             match bincode::deserialize::<PupaFrame>(&buf[..]) {
                 Ok(decoded) => match bincode::serialized_size(&decoded) {
@@ -96,7 +93,6 @@ impl Decoder for PupaCodec {
                     // Такая коррекция фрейма допустима, но в слабозагруженной системе может привести
                     // к неожиданной задержке в обработке фреймов. Но тут позволим себе такое.
                     if self.already_waited {
-                        println!("already waited for buffer to fullfill");
                         self.already_waited = false;
                         buf.clear();
                         Err(io::Error::new(
@@ -104,7 +100,6 @@ impl Decoder for PupaCodec {
                             "Failed to decode Frame, cleaning buffer",
                         ))
                     } else {
-                        println!("not yet waited for buffer to fullfill");
                         self.already_waited = true;
                         Ok(None)
                     }
