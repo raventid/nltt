@@ -198,10 +198,12 @@ async fn process(socket: tokio::net::TcpStream, peer: std::net::SocketAddr, stat
         tokio::select! {
             // Обработчик broadcast сообщений,
             // это до нас долетело чужое Content сообщение
-            // Запишем его себе и клиент уже сам разеберется с Flash
+            // Запишем его клиенту и пусть он готовит Flash
             Some(msg) = rx.recv() => {
                 writer.send(msg).await;
             }
+            // Здесь мы просто обрабатываем сокет от клиента
+            // все, что он нам пишет приходит сюда
             result = reader.next() => match result {
             Some(Ok(frame)) => match frame {
                 // Если мы получили контент от клиента, то нам нужно разослать его всем активным
@@ -235,53 +237,16 @@ async fn process(socket: tokio::net::TcpStream, peer: std::net::SocketAddr, stat
             Some(Err(e)) => {
                 log::error!("error on decoding from socket; error = {:?}", e);
             }
-            _ => {/* None игнорируем */}
+                _ => {
+                    break;
+                }
             },
         }
     }
 
-
-    // Читаем фреймы, приходящие от клиента из сокета и обрабатываем, клиент у нас уже
-    // авторизован, поэтому до закрытия сокета никакой авторизации для него требовать не будем
-    // while let Some(result) = reader.next().await {
-    //     match result {
-    //         Ok(frame) => match frame {
-    //             // Если мы получили контент, то нам нужно разослать его всем активным
-    //             // клиентам + сохранить сообщение в нашу коллекцию 500 последних сообщений
-    //             protocol::PupaFrame::Content { msg_id, body } => {
-    //                 log::debug!(
-    //                     "Content | msg_id: {}, body: {:?} for [{}:{}] ",
-    //                     msg_id,
-    //                     body,
-    //                     peer.ip(),
-    //                     peer.port()
-    //                 );
-
-    //                 state.lock().await.broadcast(current_signature, protocol::PupaFrame::Content { msg_id, body });
-    //             }
-    //             protocol::PupaFrame::Flash { msg_id } => {
-    //                 log::debug!(
-    //                     "Flash | msg_id: {} for [{}:{}]",
-    //                     msg_id,
-    //                     peer.ip(),
-    //                     peer.port()
-    //                 );
-    //             }
-    //             _ => {
-    //                 // Нам могли заново отправить фрейм с авторизацией.
-    //                 // В спецификации не указано, как на такое реагировать,
-    //                 // поэтому мы просто проигнорируем такой фрейм в рамках
-    //                 // сессии
-    //             }
-    //         },
-    //         Err(e) => {
-    //             log::error!("error on decoding from socket; error = {:?}", e);
-    //         }
-    //     }
-    // }
-
     // Все, наш клиент отключился.
     // Поменяем ему статус на offline и отключим от канала.
+    // TODO: реализовать отключение клиента
 
 
     log::debug!("Peer disconnected [{}:{}]", peer.ip(), peer.port());
