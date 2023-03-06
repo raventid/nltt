@@ -14,7 +14,11 @@ pub enum PupaFrame {
     Authorize { signature: uuid::Uuid },
     Content { msg_id: uuid::Uuid, body: Vec<u8> },
     Flash { msg_id: uuid::Uuid },
-    Win {msg_id: uuid::Uuid, body: Vec<u8> },
+    Win { msg_id: uuid::Uuid, body: Vec<u8> },
+    ShowWinners,
+    WinnerRecord {wins: u32, messages_received: u32, messages_sent: u32},
+    ShowWinnersLog,
+    WinLogRecord {signature: uuid::Uuid, timestamp: u64, msg_id: uuid::Uuid},
 }
 
 // Кодек позволяет нам превратить наш фрейм в байты и обратно.

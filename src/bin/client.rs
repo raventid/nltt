@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     flash_sender.send( msg_id ).await.unwrap()
                 }
                 protocol::PupaFrame::Win { msg_id, body } => {
-                    println!("Win | msg_id: {}, body: {:?}", msg_id, body);
+                    println!("User TOKEN is a winner for the message \"{}\"", msg_id);
                 }
                 _ => { /* Сервер не будет нам писать ничего кроме Content и Win, просто игнорируем */ }
             }
@@ -32,8 +32,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 client_writer.write_flash(msg_id).await?;
             },
             _ = send_content_timer.tick() => {
-                println!("Writing regular content");
-                client_writer.write_content(uuid::Uuid::new_v4(), client_writer.generate_random_text()).await?;
+                let uuid = uuid::Uuid::new_v4();
+                println!("Writing regular content | msg_id: {}", uuid);
+                client_writer.write_content(uuid, client_writer.generate_random_text()).await?;
             },
         }
     }
