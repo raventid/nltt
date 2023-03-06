@@ -32,10 +32,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 protocol::PupaFrame::Content { msg_id, body: _ } => {
                     flash_sender.send(msg_id).await.unwrap()
                 }
-                protocol::PupaFrame::Win { msg_id, body: _ } => {
+                protocol::PupaFrame::Win { msg_id, body } => {
                     println!(
-                        "User {} is a winner for the message \"{}\"",
-                        signature, msg_id
+                        "User {} is a winner for the message \"{}\"| message_body is {:?}",
+                        signature, msg_id, body
                     );
                 }
                 _ => { /* Сервер не будет нам писать ничего кроме Content и Win, просто игнорируем */

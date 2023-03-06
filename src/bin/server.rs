@@ -292,6 +292,7 @@ async fn run_game_handler(
                         state.lock().await.update_winners(current_signature);
                         winlog_store.lock().await.insert(msg_id, current_signature);
                         let _ = writer.send(protocol::PupaFrame::Win {msg_id, body}).await;
+                        log::info!("User {} is a winner for the message \"{}\"", current_signature, msg_id);
                     }
                 }
                 _ => {
