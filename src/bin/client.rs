@@ -5,8 +5,11 @@ use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let game_server_port = env::var("GAME_SERVER_PORT").expect("GAME_SERVER_PORT environment variable not set");
-    let game_server_port = game_server_port.parse::<u32>().expect("GAME_SERVER_PORT  environment variable is not a valid number");
+    let game_server_port =
+        env::var("GAME_SERVER_PORT").expect("GAME_SERVER_PORT environment variable not set");
+    let game_server_port = game_server_port
+        .parse::<u32>()
+        .expect("GAME_SERVER_PORT  environment variable is not a valid number");
 
     let signature = if let Ok(signature) = env::var("SIGNATURE") {
         Some(uuid::Uuid::parse_str(&signature).expect("uuid should be valid"))

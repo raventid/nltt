@@ -1,3 +1,6 @@
+// Здесь собранны те структуры, которы я использовал в сервере и клиенте
+// пока их мало, я их просто определил в lib.rs
+
 pub mod protocol;
 
 use futures::SinkExt;
@@ -64,7 +67,7 @@ impl ClientWriter {
 
 pub async fn connect_to_game_server(
     server_addr: &str,
-    signature: Option<uuid::Uuid>
+    signature: Option<uuid::Uuid>,
 ) -> Result<(ClientReader, ClientWriter), Box<dyn Error>> {
     println!("Connecting to {} ...", server_addr);
 
@@ -87,9 +90,7 @@ pub async fn connect_to_game_server(
 
     println!("Authorizing with key provided {}", signature);
 
-    let frame = protocol::PupaFrame::Authorize {
-        signature,
-    };
+    let frame = protocol::PupaFrame::Authorize { signature };
     let _ = client_writer.stream.send(frame).await;
     // TODO: обработать ошибку сети + ответ сервера в случае Unauth доступа (хотя имхо это не надо)
 

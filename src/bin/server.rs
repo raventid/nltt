@@ -1,5 +1,5 @@
-use std::{collections::HashMap, sync::Arc};
 use std::env;
+use std::{collections::HashMap, sync::Arc};
 
 use futures::SinkExt;
 use tokio::sync::Mutex;
@@ -101,24 +101,32 @@ struct Peer {
 async fn main() {
     env_logger::init();
 
-    let game_server_port = env::var("GAME_SERVER_PORT").expect("GAME_SERVER_PORT environment variable not set");
-    let game_server_port = game_server_port.parse::<u32>().expect("GAME_SERVER_PORT  environment variable is not a valid number");
-    let api_server_port =env::var("API_SERVER_PORT").expect("API_SERVER_PORT environment variable not set");
-    let api_server_port = api_server_port.parse::<u32>().expect("API_SERVER_PORT  environment variable is not a valid number");
+    let game_server_port =
+        env::var("GAME_SERVER_PORT").expect("GAME_SERVER_PORT environment variable not set");
+    let game_server_port = game_server_port
+        .parse::<u32>()
+        .expect("GAME_SERVER_PORT  environment variable is not a valid number");
+    let api_server_port =
+        env::var("API_SERVER_PORT").expect("API_SERVER_PORT environment variable not set");
+    let api_server_port = api_server_port
+        .parse::<u32>()
+        .expect("API_SERVER_PORT  environment variable is not a valid number");
 
     let state = Arc::new(Mutex::new(State::new()));
     let message_store = Arc::new(Mutex::new(MessageStore::new()));
     let winlog_store = Arc::new(Mutex::new(WinLogStore::new()));
 
     // Этот сервер обрабатывает логику игры (общение с клиентами сообщения)
-    let game_server_listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", game_server_port))
-        .await
-        .expect("Cannot bind listener to the port provided");
+    let game_server_listener =
+        tokio::net::TcpListener::bind(format!("127.0.0.1:{}", game_server_port))
+            .await
+            .expect("Cannot bind listener to the port provided");
 
     // Этот сервер обрабатывает АПИ запросы для статистики и так далее
-    let mut api_server_listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", api_server_port))
-        .await
-        .expect("Cannot bind api_server_listener to the port provided");
+    let mut api_server_listener =
+        tokio::net::TcpListener::bind(format!("127.0.0.1:{}", api_server_port))
+            .await
+            .expect("Cannot bind api_server_listener to the port provided");
 
     let game_state = Arc::clone(&state);
     let game_message_store = Arc::clone(&message_store);
