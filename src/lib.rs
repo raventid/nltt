@@ -1,5 +1,6 @@
 pub mod protocol;
 
+use linked_hash_map::LinkedHashMap;
 use futures::SinkExt;
 use std::error::Error;
 use tokio_stream::StreamExt;
@@ -90,4 +91,39 @@ pub async fn connect_to_game_server(
     // TODO: обработать ошибку сети + ответ сервера в случае Unauth доступа (хотя имхо это не надо)
 
     Ok((client_reader, client_writer))
+}
+
+
+pub struct MessageStore {
+    messages: linked_hash_map::LinkedHashMap<uuid::Uuid, Vec<u8>>
+}
+
+impl MessageStore {
+    pub fn new() -> Self {
+       MessageStore { messages: LinkedHashMap::new() }
+    }
+
+    // Наша модификация будет поддерживать размер хэшмапы в районе 500
+    // Можно было сделать через чистилку в background треде, но я решил добавить
+    // проверку прямо сюда. Придется брать lock() на всю очередь сообщений, когда
+    // любому из клиентов захочется записать новый Content, еще придется брать lock()
+    // когда мы будет искать победителя. Операций мало, lock хотя бы будет коротким.
+    //
+    // Еще один момент, мы считаем, что uuid всегда уникальные (это касается и ключей пользователя и msg_id)
+    pub fn insert(&mut self, msg_id: uuid::Uuid, value: Vec<u8>) {
+        if self.messages.len() == 500 {
+            self.messages.pop_front();
+        }
+
+        // Если вдруг так получится, что у нас коллизия uuid, то мы просто затираем старое сообщение и даже не скажем об этом клиенту (но какова вероятность?)
+        self.messages.insert(msg_id, value);
+    }
+
+    pub fn extract(&mut self, msg_id: uuid::Uuid) -> Option<(uuid::Uuid, Vec<u8>)> {
+        if let Some(bytes) = self.messages.remove(&msg_id) {
+            Some((msg_id, bytes))
+        } else {
+            None
+        }
+    }
 }

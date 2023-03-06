@@ -5,6 +5,7 @@ use tokio::{sync::Mutex, select};
 use tokio_stream::StreamExt;
 
 use nltt::protocol;
+use nltt::MessageStore;
 
 // Наш лидерборд должен быть отсортирован по статусу пользователя online
 // и числу побед.
@@ -40,7 +41,10 @@ impl State {
 
     }
 
+    // TODO: broadcast не очень дружит c single responsibilty
     async fn broadcast(&mut self, sender_signature: uuid::Uuid, message: protocol::PupaFrame) {
+        // Обновим счетчик отправленых для sender
+
         for peer in self.peers.iter_mut() {
             if *peer.0 != sender_signature && peer.1.online == true {
                 log::debug!("From {} Sending to {}, msg: {:?}", sender_signature, peer.1.signature, message);
@@ -53,6 +57,10 @@ impl State {
                     .await;
             }
         }
+    }
+
+    fn update_sender() {
+
     }
 }
 
@@ -101,6 +109,7 @@ async fn main() {
 
     let port = 8000;
     let state = Arc::new(Mutex::new(State::new()));
+    let message_store = Arc::new(Mutex::new(MessageStore::new()));
 
     let game_server_listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port))
         .await
@@ -116,18 +125,22 @@ async fn main() {
 
     loop {
         let state = Arc::clone(&state);
+        let message_store = Arc::clone(&message_store);
 
         // В peer хранится ip адрес и порт входящего подключения.
         let (socket, peer) = game_server_listener.accept().await.unwrap();
 
         // Для каждого входящего подключения мы будем создавать отдельную задачу.
+        // Можно было бы message_store положить в State, но у нас тогда была бы общая
+        // write блокировка на добавляение новых peer и на запись сообщений в очередь.
+        // Лучше разделим их, тем более это нам ничего не стоит.
         tokio::spawn(async move {
-            process(socket, peer, state).await;
+            process(socket, peer, state, message_store).await;
         });
     }
 }
 
-async fn process(socket: tokio::net::TcpStream, peer: std::net::SocketAddr, state: Arc<Mutex<State>>) {
+async fn process(socket: tokio::net::TcpStream, peer: std::net::SocketAddr, state: Arc<Mutex<State>>, message_store: Arc<Mutex<MessageStore>>) {
     log::debug!("New connection from {}:{}", peer.ip(), peer.port());
 
     let codec = protocol::PupaCodec::new();
@@ -217,6 +230,9 @@ async fn process(socket: tokio::net::TcpStream, peer: std::net::SocketAddr, stat
                         peer.port()
                     );
 
+                    // Добавляем в список сообщений
+                    message_store.lock().await.insert(msg_id, body.clone());
+                    // Броадкастим на всех клиентов
                     state.lock().await.broadcast(current_signature, protocol::PupaFrame::Content { msg_id, body }).await;
                 }
                 protocol::PupaFrame::Flash { msg_id } => {
@@ -226,6 +242,14 @@ async fn process(socket: tokio::net::TcpStream, peer: std::net::SocketAddr, stat
                         peer.ip(),
                         peer.port()
                     );
+
+                    // TODO: точно не помню, но кажется в такой семантике lock будет
+                    // жить до конца if, а нам он нужен только чтобы быстро достать значения.
+                    // Можно одной строчкой улучшить, но надо проверить.
+                    if let Some((msg_id, body)) = message_store.lock().await.extract(msg_id) {
+                        // А вот и наш победитель
+                        writer.send(protocol::PupaFrame::Win {msg_id, body}).await;
+                    }
                 }
                 _ => {
                     // Нам могли заново отправить фрейм с авторизацией.

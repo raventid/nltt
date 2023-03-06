@@ -10,9 +10,11 @@ use tokio_util::codec::{Decoder, Encoder};
 // клиент и сервер.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub enum PupaFrame {
+    // Фрейм для авторизации
     Authorize { signature: uuid::Uuid },
     Content { msg_id: uuid::Uuid, body: Vec<u8> },
     Flash { msg_id: uuid::Uuid },
+    Win {msg_id: uuid::Uuid, body: Vec<u8> },
 }
 
 // Кодек позволяет нам превратить наш фрейм в байты и обратно.

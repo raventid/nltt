@@ -17,6 +17,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 protocol::PupaFrame::Content { msg_id, body } => {
                     flash_sender.send( msg_id ).await.unwrap()
                 }
+                protocol::PupaFrame::Win { msg_id, body } => {
+                    println!("Win | msg_id: {}, body: {:?}", msg_id, body);
+                }
                 _ => { /* Сервер не будет нам писать ничего кроме Content и Win, просто игнорируем */ }
             }
         }
