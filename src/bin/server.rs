@@ -51,7 +51,7 @@ impl State {
     // надеятся, что не так часто сюда заходит клиент
     pub fn get_sorted_winners(&self) -> Vec<Peer> {
         let mut peers = self.peers.values().cloned().collect::<Vec<Peer>>();
-        peers.sort_by(|a, b| a.online.cmp(&b.online).then_with(|| a.wins.cmp(&b.wins)));
+        peers.sort_by(|a, b| b.online.cmp(&a.online).then_with(|| b.wins.cmp(&a.wins)));
         peers
     }
 
@@ -340,6 +340,7 @@ async fn run_api_handler(
                     writer
                         .send(protocol::PupaFrame::WinnerRecord {
                             signature: record.signature,
+                            online: record.online,
                             wins: record.wins,
                             messages_received: record.messages_received,
                             messages_sent: record.messages_sent,

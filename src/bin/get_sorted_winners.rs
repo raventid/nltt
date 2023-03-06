@@ -27,8 +27,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     while let Some(result) = framed.next().await {
         match result {
-            Ok(protocol::PupaFrame::WinnerRecord { signature, wins, messages_received, messages_sent }) => {
-                println!("Signature: {}, wins: {}, messages_received: {}, messages_sent: {}", signature, wins, messages_received, messages_sent );
+            Ok(protocol::PupaFrame::WinnerRecord { signature, online, wins, messages_received, messages_sent }) => {
+                println!("Signature: {}, online: {}, wins: {}, messages_received: {}, messages_sent: {}", signature, online, wins, messages_received, messages_sent );
             }
             _ => {
                 // ignore

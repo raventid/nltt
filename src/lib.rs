@@ -5,7 +5,7 @@ use linked_hash_map::LinkedHashMap;
 use std::error::Error;
 use tokio_stream::StreamExt;
 
-// Read part of the client
+// Реализация, которую использует клиент. Обертка над рид-стримом
 pub struct ClientReader {
     stream: tokio_util::codec::FramedRead<tokio::net::tcp::OwnedReadHalf, protocol::PupaCodec>,
 }
@@ -16,7 +16,7 @@ impl ClientReader {
     }
 }
 
-// Write part of the client
+// Обертка над write-stream просто несколько удобных методов
 pub struct ClientWriter {
     stream: tokio_util::codec::FramedWrite<tokio::net::tcp::OwnedWriteHalf, protocol::PupaCodec>,
 }
@@ -34,12 +34,6 @@ impl ClientWriter {
 
     pub async fn write_flash(&mut self, msg_id: uuid::Uuid) -> Result<(), std::io::Error> {
         let frame = protocol::PupaFrame::Flash { msg_id };
-
-        self.stream.send(frame).await
-    }
-
-    pub async fn ask_for_wins_log(&mut self) -> Result<(), std::io::Error> {
-        let frame = protocol::PupaFrame::ShowWinnersLog;
 
         self.stream.send(frame).await
     }
@@ -70,6 +64,7 @@ impl ClientWriter {
 
 pub async fn connect_to_game_server(
     server_addr: &str,
+    signature: Option<uuid::Uuid>
 ) -> Result<(ClientReader, ClientWriter), Box<dyn Error>> {
     println!("Connecting to {} ...", server_addr);
 
@@ -88,9 +83,12 @@ pub async fn connect_to_game_server(
         stream: tokio_util::codec::FramedWrite::new(write_half, codec),
     };
 
-    println!("Authorizing with key provided");
+    let signature = signature.unwrap_or_else(|| uuid::Uuid::new_v4());
+
+    println!("Authorizing with key provided {}", signature);
+
     let frame = protocol::PupaFrame::Authorize {
-        signature: uuid::Uuid::new_v4(),
+        signature,
     };
     let _ = client_writer.stream.send(frame).await;
     // TODO: обработать ошибку сети + ответ сервера в случае Unauth доступа (хотя имхо это не надо)

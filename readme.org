@@ -28,9 +28,14 @@
 GAME_SERVER_PORT=8000 API_SERVER_PORT=8010 RUST_LOG="debug" cargo run --bin server
 #+end_src
 
-Клиент
-#+begin_src
+Клиент. #+begin_src
 GAME_SERVER_PORT=8000 RUST_LOG="debug" cargo run --bin client
+#+end_src
+
+Я не принял решение относительно того куда положить токены ключи, поэтому если есть необходимость я добавил опциональный ENV для ключа, для удобства добавлю их сюда в команды. При подключении клиент напечатает под какой подписью он подключился. Возможно стоило в файл положить, но не успел продумать как это удобно сделать.
+#+begin_src
+SIGNATURE=96a9354f-a8bc-4895-8317-61bf73f127c8 GAME_SERVER_PORT=8000 RUST_LOG="debug" cargo run --bin client
+SIGNATURE=fc5d5532-d8c1-4a7d-b035-c2edc8ba66c6 GAME_SERVER_PORT=8000 RUST_LOG="debug" cargo run --bin client
 #+end_src
 
 Статистика с апи сервера. Скрипт идет на апи сервер и печатает статиситку в stdout.
