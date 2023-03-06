@@ -125,11 +125,7 @@ impl MessageStore {
     }
 
     pub fn extract(&mut self, msg_id: uuid::Uuid) -> Option<(uuid::Uuid, Vec<u8>)> {
-        if let Some(bytes) = self.messages.remove(&msg_id) {
-            Some((msg_id, bytes))
-        } else {
-            None
-        }
+        self.messages.remove(&msg_id).map(|bytes| (msg_id, bytes))
     }
 }
 

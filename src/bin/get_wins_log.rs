@@ -8,9 +8,8 @@ use nltt::protocol;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let api_server_port =
-        env::var("API_SERVER_PORT").expect("API_SERVER_PORT environment variable not set");
-    let api_server_port = api_server_port
+    let api_server_port = env::var("API_SERVER_PORT")
+        .expect("API_SERVER_PORT environment variable not set")
         .parse::<u32>()
         .expect("API_SERVER_PORT  environment variable is not a valid number");
 

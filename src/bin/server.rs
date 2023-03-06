@@ -57,7 +57,6 @@ impl State {
 
     // Когда я удаляю сообщения из MessageStore я не обновляю счетчики здесь,
     // то есть для меня это исторические счетчики и я никак не связываю их с сообщениями.
-    // TODO: broadcast не очень дружит c single responsibilty
     async fn broadcast(&mut self, sender_signature: uuid::Uuid, message: protocol::PupaFrame) {
         // Обновим счетчик отправленых для sender
         if let Some(current_peer) = self.peers.get_mut(&sender_signature) {
@@ -65,7 +64,7 @@ impl State {
         }
 
         for peer in self.peers.iter_mut() {
-            if *peer.0 != sender_signature && peer.1.online == true {
+            if *peer.0 != sender_signature && peer.1.online {
                 log::debug!(
                     "From {} Sending to {}, msg: {:?}",
                     sender_signature,
@@ -102,35 +101,34 @@ struct Peer {
 async fn main() {
     env_logger::init();
 
-    let game_server_port =
-        env::var("GAME_SERVER_PORT").expect("GAME_SERVER_PORT environment variable not set");
-    let game_server_port = game_server_port
+    let game_server_port = env::var("GAME_SERVER_PORT")
+        .expect("GAME_SERVER_PORT environment variable not set")
         .parse::<u32>()
         .expect("GAME_SERVER_PORT  environment variable is not a valid number");
-    let api_server_port =
-        env::var("API_SERVER_PORT").expect("API_SERVER_PORT environment variable not set");
-    let api_server_port = api_server_port
+    let api_server_port = env::var("API_SERVER_PORT")
+        .expect("API_SERVER_PORT environment variable not set")
         .parse::<u32>()
         .expect("API_SERVER_PORT  environment variable is not a valid number");
-
-    let state = Arc::new(Mutex::new(State::new()));
-    let message_store = Arc::new(Mutex::new(MessageStore::new()));
-    let winlog_store = Arc::new(Mutex::new(WinLogStore::new()));
 
     // Этот сервер обрабатывает логику игры (общение с клиентами сообщения)
     let game_server_listener =
         tokio::net::TcpListener::bind(format!("127.0.0.1:{}", game_server_port))
             .await
             .expect("Cannot bind listener to the port provided");
+    log::debug!("Started a game server at 127.0.0.1:{}", game_server_port);
 
     // Этот сервер обрабатывает АПИ запросы для статистики и так далее
     let api_server_listener =
         tokio::net::TcpListener::bind(format!("127.0.0.1:{}", api_server_port))
             .await
             .expect("Cannot bind api_server_listener to the port provided");
+    log::debug!("Started an API server at 127.0.0.1:{}", api_server_port);
+
+    let state = Arc::new(Mutex::new(State::new()));
+    let message_store = Arc::new(Mutex::new(MessageStore::new()));
+    let winlog_store = Arc::new(Mutex::new(WinLogStore::new()));
 
     let game_state = Arc::clone(&state);
-    let game_message_store = Arc::clone(&message_store);
     let game_winlog_store = Arc::clone(&winlog_store);
 
     // Запустим пару серверов на одном рантайме. Конечно с внешним хранилищем можно было бы разделить их на разные процессы.
@@ -139,10 +137,9 @@ async fn main() {
         tokio::spawn(async move {
             loop {
                 let state = Arc::clone(&game_state);
-                let message_store = Arc::clone(&game_message_store);
+                let message_store = Arc::clone(&message_store);
                 let winlog_store = Arc::clone(&game_winlog_store);
 
-                log::debug!("Started a game server at 127.0.0.1:{}", game_server_port);
                 // В peer хранится ip адрес и порт входящего подключения.
                 let (socket, peer) = game_server_listener.accept().await.unwrap();
 
@@ -158,15 +155,13 @@ async fn main() {
         tokio::spawn(async move {
             loop {
                 let state = Arc::clone(&state);
-                let message_store = Arc::clone(&message_store);
                 let winlog_store = Arc::clone(&winlog_store);
 
-                log::debug!("Started an API server at 127.0.0.1:{}", api_server_port);
                 // В peer хранится ip адрес и порт входящего подключения.
                 let (socket, peer) = api_server_listener.accept().await.unwrap();
 
                 tokio::spawn(async move {
-                    run_api_handler(socket, peer, state, message_store, winlog_store).await;
+                    run_api_handler(socket, peer, state, winlog_store).await;
                 });
             }
         })
@@ -286,9 +281,8 @@ async fn run_game_handler(
                         peer.port()
                     );
 
-                    // TODO: точно не помню, но кажется в такой семантике lock будет
+                    // TODO: кажется в такой семантике lock будет
                     // жить до конца if, а нам он нужен только чтобы быстро достать значения.
-                    // Можно одной строчкой улучшить, но надо проверить.
                     if let Some((msg_id, body)) = message_store.lock().await.extract(msg_id) {
                         // А вот и наш победитель
                         state.lock().await.update_winners(current_signature);
@@ -301,7 +295,7 @@ async fn run_game_handler(
                     // Нам могли заново отправить фрейм с авторизацией.
                     // В спецификации не указано, как на такое реагировать,
                     // поэтому мы просто проигнорируем такой фрейм в рамках
-                    // сессии
+                    // сессии. Как и другие неожиданные фреймы
                 }
             },
             Some(Err(e)) => {
@@ -325,7 +319,6 @@ async fn run_api_handler(
     socket: tokio::net::TcpStream,
     peer: std::net::SocketAddr,
     state: Arc<Mutex<State>>,
-    _message_store: Arc<Mutex<MessageStore>>,
     winlog_store: Arc<Mutex<WinLogStore>>,
 ) {
     log::debug!(
