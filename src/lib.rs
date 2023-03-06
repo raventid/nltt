@@ -45,6 +45,7 @@ impl ClientWriter {
     // на сервер сообщение типа "КОНТЕНТ", формата {MSG_ID, BODY}.
     // MSG_ID должен быть уникальным (может быть UUID или другой). BODY
     // это рандомный текст размером от 30 до 100 байт.
+    //
     // Можно было бы добавить оверхеда и сделать std::String, но так как
     // мы особо не заботимся о структуре контента сообщения, а просто храним какие-то
     // байты, то пусть будет Vec<u8>. Если что, то легко поменять потом.
@@ -91,7 +92,7 @@ pub async fn connect_to_game_server(
     log::debug!("Authorizing with key provided {}", signature);
 
     let frame = protocol::PupaFrame::Authorize { signature };
-    let _ = client_writer.stream.send(frame).await;
+    client_writer.stream.send(frame).await?;
 
     Ok((client_reader, client_writer, signature))
 }
