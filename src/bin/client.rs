@@ -37,7 +37,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         use rand::Rng;
                         let random = rand::thread_rng().gen_range(250..500);
                         tokio::time::sleep(std::time::Duration::from_millis(1_000 + random)).await;
-                        flash_sender.send(msg_id).await.expect("flash channel should be alive")
+                        flash_sender
+                            .send(msg_id)
+                            .await
+                            .expect("flash channel should be alive")
                     });
                 }
                 protocol::PupaFrame::Win { msg_id, body } => {

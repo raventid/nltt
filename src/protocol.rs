@@ -37,7 +37,7 @@ pub enum PupaFrame {
     ShowWinnersLog,
     WinLogRecord {
         signature: uuid::Uuid,
-        timestamp: u64,
+        timestamp: u128,
         msg_id: uuid::Uuid,
     },
 }

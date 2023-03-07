@@ -131,7 +131,7 @@ impl MessageStore {
 
 struct WinLog {
     signature: uuid::Uuid,
-    timestamp: u64,
+    timestamp: u128,
     msg_id: uuid::Uuid,
 }
 
@@ -153,7 +153,7 @@ impl WinLogStore {
         let timestamp = now
             .duration_since(SystemTime::UNIX_EPOCH)
             .expect("smth is wrong with time :D")
-            .as_secs();
+            .as_millis();
 
         if self.records.len() == 100 {
             self.records.pop_front();
@@ -167,7 +167,7 @@ impl WinLogStore {
         });
     }
 
-    pub fn get_all(&self) -> Vec<(uuid::Uuid, u64, uuid::Uuid)> {
+    pub fn get_all(&self) -> Vec<(uuid::Uuid, u128, uuid::Uuid)> {
         self.records
             .iter()
             .map(|win_log| (win_log.signature, win_log.timestamp, win_log.msg_id))
