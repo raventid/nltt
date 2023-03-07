@@ -28,7 +28,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
         while let Some(Ok(frame)) = client_reader.read().await {
             match frame {
                 protocol::PupaFrame::Content { msg_id, body: _ } => {
-                    flash_sender.send(msg_id).await.unwrap()
+                    // Получив сообщение типа "КОНТЕНТ" от сервера, клиент должен
+                    // запустить таймер на 1 секунду + random (от 250 до 500 ms). После
+                    // истечения времени клиент посылает на сервер другое сообщение типа
+                    // "ФЛЕШ", содержащее MSG_ID полученного сообщения.
+                    let flash_sender = flash_sender.clone();
+                    tokio::spawn(async move {
+                        use rand::Rng;
+                        let random = rand::thread_rng().gen_range(250..500);
+                        tokio::time::sleep(std::time::Duration::from_millis(1_000 + random)).await;
+                        flash_sender.send(msg_id).await.expect("flash channel should be alive")
+                    });
                 }
                 protocol::PupaFrame::Win { msg_id, body } => {
                     log::info!(
